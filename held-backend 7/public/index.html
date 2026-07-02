@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Held — a diary that lets go</title>
+<link rel="canonical" href="https://www.heldthoughts.com/">
+<meta name="description" content="Held is a voice-enabled diary that deletes each entry on a timer you choose, encrypted end to end so not even Held can read it.">
+<style>
+  :root{
+    --bg:#14100e;
+    --bg2:#1c1613;
+    --panel:#221a16;
+    --ember:#ff7a29;
+    --ember2:#ff3d1a;
+    --ink:#3a6ea8;
+    --text:#f3e9df;
+    --muted:#a8998c;
+    --danger:#ff5a5a;
+    --ok:#7fd88f;
+    --border:#3a2e27;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    background: radial-gradient(ellipse at top, #241b16 0%, #14100e 60%);
+    color:var(--text);
+    min-height:100vh;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:28px 20px 80px;}
+  h1.brand{
+    font-size:2rem;
+    text-align:center;
+    letter-spacing:1px;
+    margin:6px 0 2px;
+    background:linear-gradient(90deg,var(--ember),var(--ember2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-bottom:24px;font-style:italic;}
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:18px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .tab{
+    flex:1;text-align:center;padding:9px 0;border-radius:10px;cursor:pointer;
+    color:var(--muted);border:1px solid var(--border);font-size:.9rem;letter-spacing:.5px;
+    font-family: system-ui, sans-serif;
+  }
+  .tab.active{background:linear-gradient(90deg,var(--ember),var(--ember2));color:#1a1210;border-color:transparent;font-weight:600;}
+  label{display:block;font-size:.82rem;color:var(--muted);margin:12px 0 5px;font-family:system-ui,sans-serif;}
+  input[type=text], input[type=password], textarea{
+    width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--border);
+    background:#171210;color:var(--text);font-size:1rem;font-family:inherit;
+  }
+  textarea{min-height:120px;resize:vertical;line-height:1.5;}
+  button{
+    font-family:system-ui,sans-serif;cursor:pointer;border:none;border-radius:9px;
+    padding:11px 16px;font-size:.92rem;font-weight:600;letter-spacing:.3px;
+  }
+  .btn-primary{background:linear-gradient(90deg,var(--ember),var(--ember2));color:#1a1210;width:100%;margin-top:16px;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{opacity:.6;cursor:default;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-small{padding:7px 12px;font-size:.8rem;}
+  .row{display:flex;gap:10px;align-items:center;}
+  .msg{font-family:system-ui,sans-serif;font-size:.85rem;margin-top:10px;padding:9px 11px;border-radius:8px;}
+  .msg.err{background:rgba(255,90,90,.12);color:var(--danger);}
+  .msg.ok{background:rgba(127,216,143,.12);color:var(--ok);}
+  .hidden{display:none !important;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:system-ui,sans-serif;}
+  .userchip{font-size:.85rem;color:var(--muted);}
+  .userchip b{color:var(--text);}
+  .mic-btn{background:#2a201b;color:var(--ember);border:1px solid var(--border);width:44px;height:44px;border-radius:50%;font-size:1.1rem;flex-shrink:0;}
+  .mic-btn.on{background:var(--ember2);color:#fff;animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,61,26,.5);}70%{box-shadow:0 0 0 10px rgba(255,61,26,0);}100%{box-shadow:0 0 0 0 rgba(255,61,26,0);}}
+  .slider-row{margin-top:14px;}
+  .slider-val{font-family:system-ui,sans-serif;font-size:.85rem;color:var(--ember);font-weight:600;float:right;}
+  input[type=range]{width:100%;accent-color:var(--ember2);}
+  .presets{display:flex;gap:8px;margin-top:8px;}
+  .preset{flex:1;text-align:center;font-size:.75rem;padding:6px 0;border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer;font-family:system-ui,sans-serif;}
+  .preset.sel{border-color:var(--ember);color:var(--ember);}
+  .mode-row{display:flex;gap:10px;margin-top:14px;font-family:system-ui,sans-serif;}
+  .mode-opt{flex:1;border:1px solid var(--border);border-radius:9px;padding:10px;text-align:center;cursor:pointer;font-size:.85rem;color:var(--muted);}
+  .mode-opt.sel{border-color:var(--ember);color:var(--text);background:rgba(255,122,41,.08);}
+  .entry{
+    position:relative;overflow:visible;
+    background:#1a1310;border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;margin-bottom:14px;
+  }
+  .entry .meta{display:flex;justify-content:space-between;font-family:system-ui,sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:8px;}
+  .entry .countdown{color:var(--ember);font-weight:600;}
+  .entry .body{font-size:1.02rem;line-height:1.6;white-space:pre-wrap;}
+  .locked{color:var(--muted);font-style:italic;font-size:.9rem;font-family:system-ui,sans-serif;}
+  .ch{display:inline-block;white-space:pre;}
+  /* fire burn */
+  @keyframes charBurn{
+    0%{color:inherit;filter:none;opacity:1;}
+    35%{color:#ffb020;text-shadow:0 0 6px #ff8a20,0 0 14px #ff3d1a;}
+    70%{color:#3a1200;filter:blur(1px);opacity:.55;text-shadow:none;}
+    100%{color:#000;opacity:0;filter:blur(4px);transform:translateY(6px) scale(.75);}
+  }
+  .burning .ch{animation:charBurn 1.3s ease-in forwards;}
+  .burning{animation:shake .35s ease-in-out 3;}
+  @keyframes shake{0%,100%{transform:translateX(0);}50%{transform:translateX(1px);}}
+  .burning::after{
+    content:'';position:absolute;top:-10px;bottom:-10px;width:50px;pointer-events:none;
+    background:radial-gradient(circle, rgba(255,190,90,.95), rgba(255,61,26,.65) 55%, transparent 72%);
+    filter:blur(7px);left:-50px;
+    animation:sweep 1.5s linear forwards;
+  }
+  @keyframes sweep{from{left:-50px;}to{left:100%;}}
+  /* ink dissolve */
+  @keyframes inkDissolve{
+    0%{opacity:1;filter:blur(0);color:inherit;transform:translateY(0);}
+    45%{opacity:.75;filter:blur(1.5px) saturate(1.4);color:#2f5a8a;transform:translateY(3px);}
+    100%{opacity:0;filter:blur(7px);color:#1e3a5f;transform:translateY(16px) scaleY(1.5);}
+  }
+  .dissolving .ch{animation:inkDissolve 1.9s ease-in forwards;}
+  .dissolving::after{
+    content:'';position:absolute;inset:-8px;pointer-events:none;border-radius:12px;
+    background:radial-gradient(ellipse at center, rgba(58,110,168,.18), transparent 70%);
+    animation:bloom 1.9s ease-out forwards;
+  }
+  @keyframes bloom{0%{opacity:0;}40%{opacity:1;}100%{opacity:0;}}
+  .empty{color:var(--muted);text-align:center;padding:30px 0;font-family:system-ui,sans-serif;font-size:.9rem;}
+  details{font-family:system-ui,sans-serif;color:var(--muted);font-size:.82rem;margin-top:10px;}
+  details summary{cursor:pointer;color:var(--ember);}
+  .audit{font-family:ui-monospace,monospace;font-size:.78rem;color:var(--muted);max-height:160px;overflow:auto;background:#171210;border-radius:8px;padding:10px;margin-top:10px;}
+  .footer-note{text-align:center;color:var(--muted);font-size:.75rem;font-family:system-ui,sans-serif;margin-top:24px;line-height:1.6;}
+  .link{color:var(--ember);font-size:.85rem;font-family:system-ui,sans-serif;text-decoration:none;}
+  .link:hover{text-decoration:underline;}
+  .forgot-panel{margin-top:16px;border-top:1px dashed var(--border);padding-top:14px;}
+  .switch-label{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--muted);font-family:system-ui,sans-serif;cursor:pointer;}
+  .switch-label input{width:auto;accent-color:var(--ember2);}
+  .outbox-item{
+    background:#1a1310;border:1px solid var(--border);border-radius:10px;
+    padding:12px 14px;margin-bottom:10px;font-family:system-ui,sans-serif;
+    position:relative;overflow:visible;
+  }
+  .outbox-item .ohead{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-bottom:6px;}
+  .outbox-item .osubject{font-size:.92rem;color:var(--text);font-family:'Georgia',serif;margin-bottom:6px;}
+  .replay-target{min-height:1.6em;font-size:.95rem;line-height:1.5;white-space:pre-wrap;font-family:'Georgia',serif;color:var(--text);}
+  .replay-btn{margin-top:8px;}
+  .empty-outbox{color:var(--muted);font-size:.82rem;font-family:system-ui,sans-serif;padding:14px 0;text-align:center;}
+  .source-tag{font-size:.7rem;padding:2px 6px;border-radius:5px;border:1px solid var(--border);color:var(--muted);margin-left:6px;}
+  .clock-note{font-family:system-ui,sans-serif;font-size:.72rem;color:var(--muted);text-align:center;margin-top:6px;}
+  .danger-zone{border:1px solid rgba(255,90,90,.35);border-radius:10px;padding:10px 14px;margin-top:10px;}
+  .danger-zone summary{color:var(--danger);}
+  .btn-danger-solid{background:var(--danger);color:#1a1210;width:100%;margin-top:14px;}
+  .btn-danger-solid:hover{filter:brightness(1.1);}
+  .footer-links{text-align:center;margin-top:10px;font-family:system-ui,sans-serif;font-size:.75rem;}
+  .footer-links a{color:var(--muted);text-decoration:none;margin:0 8px;}
+  .footer-links a:hover{color:var(--ember);text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="brand">🤲 Held</h1>
+  <div class="tagline">Say it. Read it back. Let it go.</div>
+
+  <!-- ===== AUTH SCREEN ===== -->
+  <div id="authScreen" class="panel">
+    <div class="tabs">
+      <div class="tab active" data-tab="login">Log in</div>
+      <div class="tab" data-tab="signup">Create account</div>
+      <div class="tab" data-tab="admin">Admin</div>
+    </div>
+
+    <div id="tab-login">
+      <label>Username</label>
+      <input type="text" id="loginUser" autocomplete="username">
+      <label>Passcode</label>
+      <input type="password" id="loginPass" autocomplete="current-password">
+      <button class="btn-primary" id="loginBtn" onclick="handleLogin()">Log in</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="javascript:void(0)" class="link" onclick="toggleForgot()" id="forgotToggleLink">Forgot your passcode?</a>
+      </div>
+
+      <div id="forgotPanel" class="hidden forgot-panel">
+        <label>Username</label>
+        <input type="text" id="fgUser">
+        <label>Email on file</label>
+        <input type="text" id="fgEmail" placeholder="you@example.com">
+        <button class="btn-primary" onclick="handleForgotReset()">Email me a new passcode</button>
+        <div class="msg ok" style="margin-top:10px;">We'll email a fresh temporary passcode to the address on file. Using it will permanently lock any entries written under your old passcode — nobody keeps a spare key.</div>
+        <div id="forgotMsg"></div>
+      </div>
+    </div>
+
+    <div id="tab-signup" class="hidden">
+      <label>Choose a username</label>
+      <input type="text" id="suUser">
+      <label>Email (for passcode recovery + disappearance notifications)</label>
+      <input type="text" id="suEmail" placeholder="you@example.com">
+      <label>Choose a passcode (min 6 characters)</label>
+      <input type="password" id="suPass">
+      <label>Confirm passcode</label>
+      <input type="password" id="suPass2">
+      <button class="btn-primary" onclick="handleSignup()">Create account</button>
+    </div>
+
+    <div id="tab-admin" class="hidden">
+      <label>Admin username</label>
+      <input type="text" id="adminUser">
+      <label>Admin passcode</label>
+      <input type="password" id="adminPass">
+      <button class="btn-primary" onclick="handleAdminLogin()">Enter admin panel</button>
+    </div>
+
+    <div id="authMsg"></div>
+  </div>
+
+  <!-- ===== DIARY SCREEN ===== -->
+  <div id="diaryScreen" class="hidden">
+    <div class="topbar">
+      <div class="userchip">Writing as <b id="whoami"></b></div>
+      <button class="btn-ghost btn-small" onclick="logout()">Log out</button>
+    </div>
+
+    <div class="panel">
+      <label>New entry</label>
+      <div class="row">
+        <textarea id="entryText" placeholder="Say or type what's on your mind..."></textarea>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Voice to text">🎙️</button>
+        <span class="userchip" id="micStatus">Tap the mic to dictate</span>
+      </div>
+
+      <div class="slider-row">
+        <label style="display:inline;">Disappears in <span class="slider-val" id="durVal">1 hour</span></label>
+        <input type="range" id="durSlider" min="5" max="1440" step="5" value="60" oninput="updateDurLabel()">
+        <div class="presets">
+          <div class="preset" data-min="5" onclick="setPreset(5)">5 min</div>
+          <div class="preset" data-min="60" onclick="setPreset(60)">1 hr</div>
+          <div class="preset" data-min="360" onclick="setPreset(360)">6 hr</div>
+          <div class="preset sel" data-min="1440" onclick="setPreset(1440)">24 hr</div>
+        </div>
+      </div>
+
+      <div class="mode-row">
+        <div class="mode-opt sel" id="modeFire" onclick="setMode('fire')">🔥 Burns away</div>
+        <div class="mode-opt" id="modeInk" onclick="setMode('ink')">💧 Dissolves like ink</div>
+      </div>
+
+      <button class="btn-primary" onclick="createEntry()">Write it down</button>
+    </div>
+
+    <div id="entryList"></div>
+    <div class="clock-note">Entries are also watched by the server's own clock, so they'll disappear on schedule even if this tab is closed.</div>
+
+    <div class="panel">
+      <div class="topbar" style="margin-bottom:12px;">
+        <label style="margin:0;">✉️ Disappearance emails</label>
+        <label class="switch-label">
+          <input type="checkbox" id="includeTextToggle" checked onchange="savePrefs()">
+          Include entry text
+        </label>
+      </div>
+      <div id="outboxList"></div>
+    </div>
+
+    <details>
+      <summary>How your privacy is protected</summary>
+      <p>Your passcode never leaves your browser in readable form — not at signup, not at login, not during a passcode reset. The server only ever sees a one-way PBKDF2 verifier of it, the same way it's stored, so there is nothing "real" for anyone with server or database access to steal. Your actual encryption key is derived locally and used to encrypt/decrypt entries in this browser only.</p>
+      <p>The server does run a background clock that deletes each entry's ciphertext the moment it expires, whether or not anyone is logged in — that's what makes the countdown trustworthy even with the app closed. But because the server never holds your key, a background deletion can only produce a generic notification (mode + rough length, no words). Rich notifications with the real text or an exact redacted replay only happen when this app was open at the moment an entry expired, since that's the only time your key exists anywhere outside your own head. Turn off "Include entry text" above if you'd rather those rich notifications never include your actual words either.</p>
+      <p>Admins can trigger a passcode reset, but never see the new passcode or your full email — it's generated by the server and emailed directly to the address on file. Admins have no path to your entries, ever.</p>
+    </details>
+
+    <details class="danger-zone">
+      <summary>Delete my account and data</summary>
+      <p>This permanently deletes your account, your email address, any entries still counting down, and your notification history. It cannot be undone — there is no backup copy anywhere, by design.</p>
+      <label>Enter your passcode to confirm</label>
+      <input type="password" id="deleteConfirmPass" autocomplete="current-password">
+      <label>Type DELETE to confirm</label>
+      <input type="text" id="deleteConfirmWord" placeholder="DELETE">
+      <button class="btn-danger-solid" onclick="handleDeleteAccount()">Permanently delete my account</button>
+      <div id="deleteMsg"></div>
+    </details>
+  </div>
+
+  <!-- ===== ADMIN SCREEN ===== -->
+  <div id="adminScreen" class="hidden">
+    <div class="topbar">
+      <div class="userchip">Admin console</div>
+      <button class="btn-ghost btn-small" onclick="logout()">Log out</button>
+    </div>
+    <div class="panel">
+      <div class="msg ok">Admins can trigger a passcode reset. The new temporary passcode is generated by the server and emailed straight to the user — admins never see it, never see the entries, and only see a masked version of the email address.</div>
+      <label>Username to reset</label>
+      <input type="text" id="resetUser">
+      <button class="btn-primary" onclick="handleAdminReset()">Send new passcode by email</button>
+      <div id="adminMsg"></div>
+      <label style="margin-top:20px;">Audit log (actions only — no entry content ever appears here)</label>
+      <div class="audit" id="auditLog"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">Backend-connected build. Entries are encrypted in your browser before they're ever sent to the server.</div>
+  <div class="footer-links">
+    <a href="/privacy.html">Privacy Policy</a>·<a href="/terms.html">Terms of Service</a>
+  </div>
+</div>
+
+<script>
+/* ================= API base + helpers ================= */
+const API = '';
+
+async function api(path, { method = 'GET', body, token } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+  return data;
+}
+
+/* ================= crypto helpers (client-side only; server never sees passcodes) ================= */
+function bufToHex(buf){ return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function hexToBuf(hex){ const b=new Uint8Array(hex.length/2); for(let i=0;i<b.length;i++) b[i]=parseInt(hex.substr(i*2,2),16); return b; }
+
+async function deriveMaterial(passcode, saltHex){
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(passcode), {name:'PBKDF2'}, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt: hexToBuf(saltHex), iterations: 150000, hash:'SHA-256' },
+    baseKey, 512
+  );
+  const bytes = new Uint8Array(bits);
+  return { verifier: bufToHex(bytes.slice(0,32)), keyBytes: bytes.slice(32,64) };
+}
+async function importAesKey(keyBytes){
+  return crypto.subtle.importKey('raw', keyBytes, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
+}
+async function encryptText(key, plaintext){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder().encode(plaintext);
+  const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc);
+  return { iv: bufToHex(iv), cipher: bufToHex(cipher) };
+}
+async function decryptText(key, ivHex, cipherHex){
+  try{
+    const plain = await crypto.subtle.decrypt(
+      {name:'AES-GCM', iv: hexToBuf(ivHex)}, key, hexToBuf(cipherHex)
+    );
+    return new TextDecoder().decode(plain);
+  }catch(e){ return null; }
+}
+
+/* ================= app state ================= */
+let currentUser = null;
+let currentKey = null;   // in-memory CryptoKey, never sent to the server
+let authToken = null;
+let adminToken = null;
+let selectedMode = 'fire';
+let tickHandle = null;
+let syncHandle = null;
+let entriesCache = [];
+
+/* ================= tab switching ================= */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    ['login','signup','admin'].forEach(name=>{
+      document.getElementById('tab-'+name).classList.toggle('hidden', name!==t.dataset.tab);
+    });
+    document.getElementById('authMsg').innerHTML='';
+  });
+});
+
+function showMsg(elId, text, ok){
+  document.getElementById(elId).innerHTML = `<div class="msg ${ok?'ok':'err'}">${text}</div>`;
+}
+
+/* ================= signup / login (two-step, zero-knowledge) ================= */
+async function handleSignup(){
+  const username = document.getElementById('suUser').value.trim().toLowerCase();
+  const email = document.getElementById('suEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('suPass').value;
+  const pass2 = document.getElementById('suPass2').value;
+  if(!/^[a-z0-9_]{3,20}$/.test(username)){
+    return showMsg('authMsg','Username must be 3-20 characters: letters, numbers, underscore.');
+  }
+  if(pass.length < 6) return showMsg('authMsg','Passcode must be at least 6 characters.');
+  if(pass !== pass2) return showMsg('authMsg','Passcodes do not match.');
+  try{
+    const { salt } = await api('/api/signup/init', { method:'POST', body:{ username, email } });
+    const { verifier } = await deriveMaterial(pass, salt);
+    await api('/api/signup/complete', { method:'POST', body:{ username, verifier } });
+    showMsg('authMsg','Account created — log in above.', true);
+    document.getElementById('suUser').value='';
+    document.getElementById('suEmail').value='';
+    document.getElementById('suPass').value='';
+    document.getElementById('suPass2').value='';
+  }catch(e){
+    showMsg('authMsg', e.message);
+  }
+}
+
+async function handleLogin(){
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  try{
+    const { salt } = await api('/api/login/init', { method:'POST', body:{ username } });
+    const { verifier, keyBytes } = await deriveMaterial(pass, salt);
+    const { token } = await api('/api/login/complete', { method:'POST', body:{ username, verifier } });
+    currentUser = username;
+    currentKey = await importAesKey(keyBytes);
+    authToken = token;
+    enterDiary();
+  }catch(e){
+    showMsg('authMsg','No such user, or wrong passcode.');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function handleAdminLogin(){
+  const username = document.getElementById('adminUser').value.trim();
+  const passcode = document.getElementById('adminPass').value;
+  try{
+    const { token } = await api('/api/admin/login', { method:'POST', body:{ username, passcode } });
+    adminToken = token;
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('adminScreen').classList.remove('hidden');
+    renderAudit();
+  }catch(e){
+    showMsg('authMsg', e.message);
+  }
+}
+
+async function handleAdminReset(){
+  const username = document.getElementById('resetUser').value.trim().toLowerCase();
+  try{
+    const { maskedEmail } = await api('/api/admin/reset', { method:'POST', token: adminToken, body:{ username } });
+    showMsg('adminMsg', `A new passcode was generated and emailed to ${maskedEmail}. Their prior entries are now permanently unreadable — by design, admins never had the key.`, true);
+    document.getElementById('resetUser').value='';
+    renderAudit();
+  }catch(e){
+    showMsg('adminMsg', e.message);
+  }
+}
+
+async function renderAudit(){
+  try{
+    const { audit } = await api('/api/admin/audit', { token: adminToken });
+    document.getElementById('auditLog').innerHTML = audit.length
+      ? audit.map(l=>`${l.ts.replace('T',' ').slice(0,19)} — ${l.action}`).join('<br>')
+      : '(no actions yet)';
+  }catch(e){
+    document.getElementById('auditLog').textContent = 'Could not load audit log.';
+  }
+}
+
+/* ================= forgot passcode (self-service) ================= */
+function toggleForgot(){
+  const panel = document.getElementById('forgotPanel');
+  const willShow = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  document.getElementById('forgotToggleLink').textContent = willShow ? 'Cancel' : 'Forgot your passcode?';
+  document.getElementById('forgotMsg').innerHTML = '';
+}
+
+async function handleForgotReset(){
+  const username = document.getElementById('fgUser').value.trim().toLowerCase();
+  const email = document.getElementById('fgEmail').value.trim().toLowerCase();
+  try{
+    const { message } = await api('/api/forgot-passcode', { method:'POST', body:{ username, email } });
+    showMsg('forgotMsg', message, true);
+    document.getElementById('fgUser').value='';
+    document.getElementById('fgEmail').value='';
+  }catch(e){
+    showMsg('forgotMsg', e.message);
+  }
+}
+
+function logout(){
+  if(authToken) api('/api/logout', { method:'POST', token: authToken }).catch(()=>{});
+  currentUser = null; currentKey = null; authToken = null; adminToken = null;
+  entriesCache = [];
+  if(tickHandle) clearInterval(tickHandle);
+  if(syncHandle) clearInterval(syncHandle);
+  stopMic();
+  document.getElementById('diaryScreen').classList.add('hidden');
+  document.getElementById('adminScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('loginPass').value='';
+  document.getElementById('forgotPanel').classList.add('hidden');
+  document.getElementById('forgotToggleLink').textContent = 'Forgot your passcode?';
+}
+
+// Requires re-entering the passcode (re-derived and re-verified server-side,
+// exactly like login) plus typing DELETE, so this can't happen from a
+// misclick or a hijacked session token alone.
+async function handleDeleteAccount(){
+  const passcode = document.getElementById('deleteConfirmPass').value;
+  const word = document.getElementById('deleteConfirmWord').value.trim();
+  if(word !== 'DELETE'){
+    return showMsg('deleteMsg', 'Type DELETE (all caps) to confirm.');
+  }
+  if(!passcode){
+    return showMsg('deleteMsg', 'Enter your passcode to confirm.');
+  }
+  try{
+    const { salt } = await api('/api/login/init', { method:'POST', body:{ username: currentUser } });
+    const { verifier } = await deriveMaterial(passcode, salt);
+    await api('/api/account', { method:'DELETE', token: authToken, body:{ verifier } });
+    showMsg('deleteMsg', 'Account and all data permanently deleted. Logging you out…', true);
+    setTimeout(logout, 1500);
+  }catch(e){
+    showMsg('deleteMsg', e.message || 'Could not verify passcode — account was not deleted.');
+  }
+}
+
+async function enterDiary(){
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('diaryScreen').classList.remove('hidden');
+  document.getElementById('whoami').textContent = currentUser;
+  try{
+    const { prefs } = await api('/api/prefs', { token: authToken });
+    document.getElementById('includeTextToggle').checked = prefs.includeText !== false;
+  }catch(e){}
+  await loadEntries();
+  await loadOutbox();
+  if(tickHandle) clearInterval(tickHandle);
+  if(syncHandle) clearInterval(syncHandle);
+  tickHandle = setInterval(tick, 1000);
+  syncHandle = setInterval(syncWithServer, 6000);
+}
+
+async function savePrefs(){
+  if(!authToken) return;
+  try{
+    await api('/api/prefs', { method:'POST', token: authToken, body:{ includeText: document.getElementById('includeTextToggle').checked } });
+  }catch(e){}
+}
+
+/* ================= duration + mode UI ================= */
+function fmtDuration(min){
+  if(min < 60) return min + ' min';
+  const h = Math.floor(min/60), m = min%60;
+  return m ? `${h}h ${m}m` : `${h} hour${h>1?'s':''}`;
+}
+function updateDurLabel(){
+  const min = parseInt(document.getElementById('durSlider').value, 10);
+  document.getElementById('durVal').textContent = fmtDuration(min);
+  document.querySelectorAll('.preset').forEach(p=>p.classList.toggle('sel', parseInt(p.dataset.min,10)===min));
+}
+function setPreset(min){
+  document.getElementById('durSlider').value = min;
+  updateDurLabel();
+}
+function setMode(mode){
+  selectedMode = mode;
+  document.getElementById('modeFire').classList.toggle('sel', mode==='fire');
+  document.getElementById('modeInk').classList.toggle('sel', mode==='ink');
+}
+
+/* ================= voice to text ================= */
+let recognition = null, micOn = false;
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+function toggleMic(){
+  if(!SpeechRec){
+    document.getElementById('micStatus').textContent = 'Voice input not supported in this browser — try Chrome.';
+    return;
+  }
+  if(micOn){ stopMic(); return; }
+  recognition = new SpeechRec();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  const ta = document.getElementById('entryText');
+  let baseText = ta.value ? ta.value + ' ' : '';
+  recognition.onresult = (e)=>{
+    let interim = '', final = '';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    if(final) baseText += final + ' ';
+    ta.value = baseText + interim;
+  };
+  recognition.onerror = ()=>{ document.getElementById('micStatus').textContent = 'Mic error — try again.'; };
+  recognition.onend = ()=>{ if(micOn){ recognition.start(); } };
+  recognition.start();
+  micOn = true;
+  document.getElementById('micBtn').classList.add('on');
+  document.getElementById('micStatus').textContent = 'Listening...';
+}
+function stopMic(){
+  micOn = false;
+  if(recognition){ recognition.onend = null; recognition.stop(); }
+  document.getElementById('micBtn').classList.remove('on');
+  document.getElementById('micStatus').textContent = 'Tap the mic to dictate';
+}
+
+/* ================= entries ================= */
+async function loadEntries(){
+  try{
+    const { entries } = await api('/api/entries', { token: authToken });
+    entriesCache = entries;
+    renderEntries();
+  }catch(e){}
+}
+
+async function createEntry(){
+  const text = document.getElementById('entryText').value.trim();
+  if(!text) return;
+  const minutes = parseInt(document.getElementById('durSlider').value, 10);
+  const { iv, cipher } = await encryptText(currentKey, text);
+  try{
+    await api('/api/entries', { method:'POST', token: authToken, body:{ iv, cipher, minutes, mode: selectedMode } });
+    document.getElementById('entryText').value = '';
+    stopMic();
+    await loadEntries();
+  }catch(e){
+    showMsg('authMsg', e.message);
+  }
+}
+
+async function renderEntries(){
+  const list = entriesCache.slice().sort((a,b)=>a.expiresAt-b.expiresAt);
+  const container = document.getElementById('entryList');
+  if(!list.length){ container.innerHTML = '<div class="empty">Nothing written yet. Your first entry will appear here.</div>'; return; }
+  container.innerHTML = '';
+  for(const entry of list){
+    const div = document.createElement('div');
+    div.className = 'entry';
+    div.dataset.id = entry.id;
+    const plain = await decryptText(currentKey, entry.iv, entry.cipher);
+    const bodyHtml = plain === null
+      ? '<div class="locked">🔒 This entry cannot be unlocked — the passcode used to encrypt it has changed.</div>'
+      : '<div class="body">' + [...plain].map((ch,i)=>`<span class="ch" style="--i:${i}">${escapeHtml(ch)}</span>`).join('') + '</div>';
+    div.innerHTML = `
+      <div class="meta">
+        <span>${entry.mode==='fire'?'🔥':'💧'} written ${timeAgo(entry.createdAt)}</span>
+        <span class="countdown" data-expires="${entry.expiresAt}">--:--</span>
+      </div>
+      ${bodyHtml}
+    `;
+    container.appendChild(div);
+  }
+  tick();
+}
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function timeAgo(ts){
+  const s = Math.floor((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  return Math.floor(s/3600)+'h ago';
+}
+function fmtCountdown(ms){
+  if(ms<=0) return '0:00';
+  const totalSec = Math.ceil(ms/1000);
+  const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  if(h>0) return `${h}h ${m}m left`;
+  if(m>0) return `${m}m ${s}s left`;
+  return `${s}s left`;
+}
+
+const animating = new Set();
+function tick(){
+  document.querySelectorAll('.countdown').forEach(el=>{
+    const expires = parseInt(el.dataset.expires, 10);
+    const remain = expires - Date.now();
+    el.textContent = fmtCountdown(remain);
+    const entryEl = el.closest('.entry');
+    const id = entryEl.dataset.id;
+    if(remain <= 0 && !animating.has(id)){
+      animating.add(id);
+      expireEntry(id, entryEl);
+    }
+  });
+}
+
+// Called when THIS client notices an entry expired (app was open). We decrypt
+// locally, animate, then tell the server to delete it and (optionally) hand
+// over the text so the notification is rich instead of generic.
+async function expireEntry(id, entryEl){
+  const entry = entriesCache.find(e=>e.id===id);
+  const mode = entry ? entry.mode : 'fire';
+  entryEl.classList.add(mode === 'fire' ? 'burning' : 'dissolving');
+  const duration = mode === 'fire' ? 1900 : 2400;
+
+  let plaintext = null;
+  if(entry && currentKey){
+    plaintext = await decryptText(currentKey, entry.iv, entry.cipher);
+  }
+
+  setTimeout(async ()=>{
+    entriesCache = entriesCache.filter(e=>e.id!==id);
+    animating.delete(id);
+    if(entryEl.parentNode) entryEl.parentNode.removeChild(entryEl);
+    if(!document.querySelectorAll('.entry').length){
+      document.getElementById('entryList').innerHTML = '<div class="empty">Nothing written yet. Your first entry will appear here.</div>';
+    }
+    if(plaintext !== null){
+      const includeText = document.getElementById('includeTextToggle').checked;
+      const redacted = plaintext.replace(/\S/g, '•');
+      try{
+        await api('/api/entries/'+id, {
+          method:'DELETE', token: authToken,
+          body: { text: includeText ? plaintext : null, redacted }
+        });
+      }catch(e){ /* entry may already be gone if the server clock beat us to it */ }
+      await loadOutbox();
+    }
+  }, duration);
+}
+
+// Periodically reconcile with the server: pick up entries the background
+// clock already deleted while this tab wasn't looking, and refresh the
+// outbox with anything new (from this session or the server's own sweep).
+async function syncWithServer(){
+  try{
+    const { entries } = await api('/api/entries', { token: authToken });
+    const serverIds = new Set(entries.map(e=>e.id));
+    const localIds = new Set(entriesCache.map(e=>e.id));
+    const goneServerSide = entriesCache.filter(e => !serverIds.has(e.id) && !animating.has(e.id));
+    if(goneServerSide.length){
+      // The server's clock already removed these — we never got to animate
+      // them locally, so just drop them quietly.
+      entriesCache = entriesCache.filter(e => serverIds.has(e.id) || animating.has(e.id));
+      renderEntries();
+    }
+    // Pick up any brand-new entries created elsewhere (other tab/device).
+    const newOnes = entries.filter(e => !localIds.has(e.id));
+    if(newOnes.length){
+      entriesCache = entriesCache.concat(newOnes);
+      renderEntries();
+    }
+  }catch(e){}
+  await loadOutbox();
+}
+
+/* ================= disappearance-email outbox ================= */
+async function loadOutbox(){
+  try{
+    const { outbox } = await api('/api/outbox', { token: authToken });
+    renderOutbox(outbox);
+  }catch(e){}
+}
+
+function renderOutbox(list){
+  const container = document.getElementById('outboxList');
+  if(!list || !list.length){
+    container.innerHTML = '<div class="empty-outbox">No disappearance emails yet — they show up here after an entry burns away or dissolves.</div>';
+    return;
+  }
+  container.innerHTML = list.map(note => `
+    <div class="outbox-item" data-id="${note.id}">
+      <div class="ohead">
+        <span>To: ${escapeHtml(note.to || '(no email on file)')}</span>
+        <span>${note.sentAt ? timeAgo(note.sentAt) : ''}</span>
+      </div>
+      <div class="osubject">${note.mode==='fire'?'🔥':'💧'} ${escapeHtml(note.subject)}
+        <span class="source-tag">${note.source === 'scheduler' ? 'server clock' : 'live in-app'}</span>
+      </div>
+      <div class="replay-target" id="replay-${note.id}"></div>
+      <button class="btn-ghost btn-small replay-btn" onclick='replayNotification(${JSON.stringify(note)})'>▶ Replay disappearance</button>
+      ${note.text===null ? '<div class="userchip" style="margin-top:6px;">🔒 Exact text not available for this one — replay shown redacted or by length only.</div>' : ''}
+    </div>
+  `).join('');
+}
+
+function replayNotification(note){
+  const target = document.getElementById('replay-'+note.id);
+  if(!target) return;
+  let source;
+  if(note.text !== null && note.text !== undefined){
+    source = note.text;
+  } else if(note.redacted){
+    source = note.redacted;
+  } else {
+    source = '•'.repeat(Math.min(note.approxLen || 20, 200));
+  }
+  target.innerHTML = [...source].map((ch,i)=>`<span class="ch" style="--i:${i}">${escapeHtml(ch)}</span>`).join('');
+  target.classList.remove('burning','dissolving');
+  void target.offsetWidth;
+  requestAnimationFrame(()=>{
+    target.classList.add(note.mode === 'fire' ? 'burning' : 'dissolving');
+  });
+}
+
+updateDurLabel();
+</script>
+</body>
+</html>
