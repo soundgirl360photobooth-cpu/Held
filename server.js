@@ -93,7 +93,7 @@ app.post('/api/signup/complete', (req, res) => {
   const verifier = String(req.body.verifier || '');
   const pending = pendingSignups.get(username);
   if (!pending) return res.status(400).json({ error: 'Signup expired or not started — try again.' });
-  db.state.users[username] = { salt: pending.salt, verifier, email: pending.email };
+  db.state.users[username] = { salt: pending.salt, verifier, email: pending.email, createdAt: Date.now() };
   db.state.prefs[username] = { includeText: true };
   db.save();
   pendingSignups.delete(username);
@@ -183,6 +183,27 @@ app.post('/api/admin/reset', adminAuth, async (req, res) => {
 
 app.get('/api/admin/audit', adminAuth, (req, res) => {
   res.json({ audit: db.state.audit.slice(0, 50) });
+});
+
+// Full username + email list, for account records / outreach. Deliberately
+// separate from everything else an admin can do: it exposes real email
+// addresses (unmasked, unlike the reset confirmation above), so it's logged
+// to the audit trail every time it's viewed. It never includes passcodes,
+// verifiers, salts, or anything about entry content — those remain
+// inaccessible to admins under any endpoint.
+app.get('/api/admin/users', adminAuth, (req, res) => {
+  const users = Object.keys(db.state.users)
+    .map((username) => ({
+      username,
+      email: db.state.users[username].email || null,
+      createdAt: db.state.users[username].createdAt || null,
+    }))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  db.pushAudit(`Admin viewed the full user list (${users.length} accounts)`);
+  db.save();
+
+  res.json({ users, total: users.length });
 });
 
 // ============================= entries =============================
